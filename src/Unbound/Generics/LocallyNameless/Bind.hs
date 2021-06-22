@@ -83,3 +83,5 @@ instance (Alpha p, Alpha t) => Alpha (Bind p t) where
 
   acompare' ctx (B p1 t1) (B p2 t2) =
     acompare' (patternCtx ctx) p1 p2 <> acompare' (incrLevelCtx ctx) t1 t2
+  
+  has' ctx n (B p t) = has' (patternCtx ctx) n p || has' (incrLevelCtx ctx) n t

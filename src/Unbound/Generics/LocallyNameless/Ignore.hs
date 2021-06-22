@@ -45,3 +45,4 @@ instance (Show t) => Alpha (Ignore t) where
     lfreshen' _ i cont = cont i mempty
     freshen' _ i = return (i, mempty)
     acompare' _ _ _ = EQ
+    has' _ _ _ = False

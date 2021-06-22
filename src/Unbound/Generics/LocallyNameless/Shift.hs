@@ -93,5 +93,6 @@ instance Alpha e => Alpha (Shift e) where
 
 
   acompare' ctx (Shift x) (Shift y) = acompare' ctx x y
-
+  
+  has' _ _ _ = error "unsupported on shift"
   

@@ -77,3 +77,21 @@ ee2 = smallStep e2
 
 -- note this is acutally bugy, since the free var is not accounted for!
 ee2' = runFreshM $ smallStep' e2
+
+
+e3 = has' initialCtx (AnyName z) $ App (Lam (B z $ V z)) (I 0)
+
+
+e41 = has' initialCtx (AnyName z) $ x
+e42 = has' initialCtx (AnyName z) $ AnyName x
+e43 = has' initialCtx (AnyName z) $ V x
+e44 = has' initialCtx (AnyName z) $ (B z $ V x)
+e4 = has' initialCtx (AnyName z) $ App (Lam (B z $ V x)) (I 0) -- TODO needs to ignore binding positions
+e50 = has' initialCtx (AnyName $ (Bn 0 0 :: Var)) $ (Bn 0 0 :: Var)
+e51 = has' initialCtx (AnyName $ (Bn 1 0 :: Var)) $ (Bn 0 0 :: Var)
+e52 = has' initialCtx (AnyName $ (Bn 0 0 :: Var)) $ (Bn 1 0 :: Var)
+e53 = has' initialCtx (AnyName $ (Bn 0 1 :: Var)) $ (Bn 0 1 :: Var)
+
+e54 = has' initialCtx (AnyName $ (Bn 0 0 :: Var)) $ B z $ (V $ Bn 0 0)
+e55 = has' initialCtx (AnyName $ (Bn 0 0 :: Var)) $ B z $ (V $ Bn 1 0)
+

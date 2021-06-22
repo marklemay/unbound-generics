@@ -246,8 +246,9 @@ class (Show a) => Alpha a where
   default acompare' :: (Generic a, GAlpha (Rep a)) => AlphaCtx -> a -> a -> Ordering
   acompare' c = (gacompare c) `on` from
 
-  -- has' :: AlphaCtx -> AnyName -> a -> Bool
-  -- has' = undefined
+  has' :: AlphaCtx -> AnyName -> a -> Bool
+  default has' :: (Generic a, GAlpha (Rep a)) => AlphaCtx -> AnyName -> a -> Bool
+  has' ctx n a = ghas ctx n (from a)
 
 -- Internal: the free monad over the Functor f.  Note that 'freshen''
 -- has a monadic return type and moreover we have to thread the
@@ -355,7 +356,7 @@ class GAlpha f where
 
   gacompare :: AlphaCtx -> f a -> f a -> Ordering
 
-  -- ghas :: AlphaCtx -> AnyName -> f a -> Bool
+  ghas :: AlphaCtx -> AnyName -> f a -> Bool
 
 instance (Alpha c) => GAlpha (K1 i c) where
   gaeq ctx (K1 c1) (K1 c2) = aeq' ctx c1 c2
@@ -388,6 +389,8 @@ instance (Alpha c) => GAlpha (K1 i c) where
   {-# INLINE glfreshen #-}
 
   gacompare ctx (K1 c1) (K1 c2) = acompare' ctx c1 c2
+
+  ghas ctx n (K1 c1) = has' ctx n c1
 
 instance GAlpha f => GAlpha (M1 i c f) where
   gaeq ctx (M1 f1) (M1 f2) = gaeq ctx f1 f2
@@ -422,6 +425,8 @@ instance GAlpha f => GAlpha (M1 i c f) where
 
   gacompare ctx (M1 f1) (M1 f2) = gacompare ctx f1 f2
 
+  ghas ctx n (M1 c1) = ghas ctx n c1
+
 instance GAlpha U1 where
   gaeq _ctx _ _ = True
   {-# INLINE gaeq #-}
@@ -445,6 +450,8 @@ instance GAlpha U1 where
 
   gacompare _ctx _ _ = EQ
 
+  ghas ctx n _ = False
+
 instance GAlpha V1 where
   gaeq _ctx _ _ = False
   {-# INLINE gaeq #-}
@@ -467,6 +474,8 @@ instance GAlpha V1 where
   glfreshen _ctx _ cont = cont undefined mempty
 
   gacompare _ctx _ _ = error "LocallyNameless.gacompare: undefined for empty data types"
+
+  ghas ctx n _ = False
 
 instance (GAlpha f, GAlpha g) => GAlpha (f :*: g) where
   gaeq ctx (f1 :*: g1) (f2 :*: g2) =
@@ -510,6 +519,9 @@ instance (GAlpha f, GAlpha g) => GAlpha (f :*: g) where
 
   gacompare ctx (f1 :*: g1) (f2 :*: g2) =
     (gacompare ctx f1 f2) <> (gacompare ctx g1 g2)
+
+
+  ghas ctx n (f1 :*: g1) = ghas ctx n f1 || ghas ctx n g1 
 
 instance (GAlpha f, GAlpha g) => GAlpha (f :+: g) where
   gaeq ctx  (L1 f1) (L1 f2) = gaeq ctx f1 f2
@@ -564,6 +576,9 @@ instance (GAlpha f, GAlpha g) => GAlpha (f :+: g) where
   gacompare ctx  (R1 g1) (R1 g2) = gacompare ctx g1 g2
   {-# INLINE gacompare #-}
 
+  ghas ctx n (L1 f) = ghas ctx n f
+  ghas ctx n (R1 f) = ghas ctx n f
+
 -- ============================================================
 -- Alpha instances for the usual types
 
@@ -586,6 +601,8 @@ instance Alpha Int where
   lfreshen' _ctx i cont = cont i mempty
 
   acompare' _ctx i j = compare i j
+  
+  has' _ctx _ _ = False
 
 instance Alpha Char where
   aeq' _ctx i j = i == j
@@ -606,6 +623,8 @@ instance Alpha Char where
   lfreshen' _ctx i cont = cont i mempty
 
   acompare' _ctx i j = compare i j
+  
+  has' _ctx _ _ = False
 
 instance Alpha Integer where
   aeq' _ctx i j = i == j
@@ -626,6 +645,8 @@ instance Alpha Integer where
   lfreshen' _ctx i cont = cont i mempty
 
   acompare' _ctx i j = compare i j
+  
+  has' _ctx _ _ = False
 
 instance Alpha Float where
   aeq' _ctx i j = i == j
@@ -646,6 +667,8 @@ instance Alpha Float where
   lfreshen' _ctx i cont = cont i mempty
 
   acompare' _ctx i j = compare i j
+  
+  has' _ctx _ _ = False
 
 instance Alpha Double where
   aeq' _ctx i j = i == j
@@ -667,6 +690,8 @@ instance Alpha Double where
 
   acompare' _ctx i j = compare i j
 
+  has' _ctx _ _ = False
+
 instance (Integral n, Alpha n) => Alpha (Ratio n) where
   aeq' _ctx i j = i == j
 
@@ -686,6 +711,8 @@ instance (Integral n, Alpha n) => Alpha (Ratio n) where
   lfreshen' _ctx i cont = cont i mempty
 
   acompare' _ctx i j = compare i j
+
+  has' _ctx _ _ = False
 
 instance Alpha Bool
 
@@ -784,8 +811,10 @@ instance Typeable a => Alpha (Name a) where
 
   acompare' _ _          _                        = EQ
 
-  -- has' ctx a@(AnyName (Fn _ _)) b@(Fn _ _) = a == AnyName b 
-  -- has' ctx a@(AnyName (Fn _ _)) b@(Fn _ _)  = undefined
+  has' ctx a@(AnyName (Fn _ _)) b@(Fn _ _) | isTermCtx ctx = a == AnyName b 
+  has' ctx (AnyName (Bn l i)) (Bn l' i') | isTermCtx ctx = 
+    i == i' &&  ctxLevel ctx + l == l'
+  has' _ _ _ = False -- don't capture things in pattern ctx
 
 instance Alpha AnyName where
   aeq' ctx x y =
@@ -846,3 +875,5 @@ instance Alpha AnyName where
         ord -> ord
 
   acompare' _ _ _ = EQ
+
+  has' ctx a (AnyName b) = has' ctx a b
