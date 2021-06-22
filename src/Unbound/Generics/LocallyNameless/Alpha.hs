@@ -246,6 +246,9 @@ class (Show a) => Alpha a where
   default acompare' :: (Generic a, GAlpha (Rep a)) => AlphaCtx -> a -> a -> Ordering
   acompare' c = (gacompare c) `on` from
 
+  -- has' :: AlphaCtx -> AnyName -> a -> Bool
+  -- has' = undefined
+
 -- Internal: the free monad over the Functor f.  Note that 'freshen''
 -- has a monadic return type and moreover we have to thread the
 -- permutation through the 'gfreshen' calls to crawl over the value
@@ -351,6 +354,8 @@ class GAlpha f where
   glfreshen :: LFresh m => AlphaCtx -> f a -> (f a -> Perm AnyName -> m b) -> m b
 
   gacompare :: AlphaCtx -> f a -> f a -> Ordering
+
+  -- ghas :: AlphaCtx -> AnyName -> f a -> Bool
 
 instance (Alpha c) => GAlpha (K1 i c) where
   gaeq ctx (K1 c1) (K1 c2) = aeq' ctx c1 c2
@@ -705,7 +710,7 @@ instance Typeable a => Alpha (Name a) where
                   -- they're both bound, so they can vary).
 
   fvAny' ctx nfn nm = if isTermCtx ctx && isFreeName nm
-                      then contramap AnyName  (nfn (AnyName nm))
+                      then contramap AnyName (nfn (AnyName nm))
                       else pure nm
 
   open ctx b a@(Bn l k) =
@@ -778,6 +783,9 @@ instance Typeable a => Alpha (Name a) where
   acompare' ctx (Bn _ _) (Fn _ _) | isTermCtx ctx = GT
 
   acompare' _ _          _                        = EQ
+
+  -- has' ctx a@(AnyName (Fn _ _)) b@(Fn _ _) = a == AnyName b 
+  -- has' ctx a@(AnyName (Fn _ _)) b@(Fn _ _)  = undefined
 
 instance Alpha AnyName where
   aeq' ctx x y =

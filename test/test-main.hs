@@ -1,5 +1,6 @@
 module Main where
 
+import System.Environment
 import Test.Tasty
 
 import TestCalc
@@ -14,7 +15,13 @@ import TestTH
 import TestSubstBind
 
 main :: IO ()
-main = defaultMain $ testGroup "unboundGenerics"
+main = do
+  setEnv "TASTY_TIMEOUT" "120s"
+
+  setEnv "TASTY_QUICKCHECK_TESTS" "100000"
+  setEnv "TASTY_QUICKCHECK_MAX_SIZE" "5000"
+
+  defaultMain $ testGroup "unboundGenerics"
        [
          test_calc
        , test_parallelReduction
@@ -27,3 +34,6 @@ main = defaultMain $ testGroup "unboundGenerics"
        , test_TH
        , test_substBind
        ]
+  unsetEnv "TASTY_TIMEOUT"
+  unsetEnv "TASTY_QUICKCHECK_TESTS"
+  unsetEnv "TASTY_QUICKCHECK_MAX_SIZE"

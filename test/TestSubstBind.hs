@@ -12,6 +12,9 @@ import Test.QuickCheck
 import Test.Tasty.QuickCheck (testProperty)
 import Unbound.Generics.LocallyNameless.Unsafe (unsafeUnbind)
 
+import Unbound.Generics.LocallyNameless.Name 
+import Unbound.Generics.LocallyNameless.Bind 
+
 import AlphaProperties 
 
 type Var = Name Expr
@@ -33,8 +36,8 @@ instance Arbitrary Expr where
   shrink (Lam bndExp) = 
     (substBind bndExp <$> [I 0, V x, V y, V z]) -- does the problem persist with the binder removed?
      ++ (Lam <$> underBinder shrink bndExp) -- shrink under the binder
-  shrink (f `App` a) = [f, a] ++ (App <$> shrink f <*> shrink a)
-  shrink _ = []
+  shrink (f `App` a) = [f, a] ++ [f' `App` a' | (f',a') <- shrink (f, a)]
+  shrink (V _) = [I 0]
 
 underBinder :: (Monad m) => (Expr -> m Expr) -> Bind Var Expr -> m (Bind Var Expr)
 underBinder op bndExp = let 
@@ -47,20 +50,21 @@ arbitrarySizedExpr :: Int -> Gen Expr
 arbitrarySizedExpr i | i < 1 = do 
   n <- arbitrary 
   var <- elements [x,y,z]
-  elements [I n, V $ var]
+  elements [I n, V var]
 arbitrarySizedExpr i = do 
   rest <- arbitrarySizedExpr (i - 1)
   var <- elements [x,y,z]
   n <- arbitrary 
   f <- arbitrarySizedExpr (i `div` 2) -- TODO: reorganize better
   a <- arbitrarySizedExpr (i `div` 2)
-  elements [Lam $ bind var rest, f `App` a, I n, V $ var]
+  elements [Lam $ bind var rest, f `App` a, I n, V var]
 
 
 x,y,z :: Var
 x = s2n "x"
 y = s2n "y"
 z = s2n "z"
+
 
 
 smallStep :: Expr -> Maybe Expr
@@ -70,6 +74,7 @@ smallStep (f `App` a) =
     (Nothing, Nothing) -> Nothing
     (Just f', _) -> Just $ f' `App` a
     (Nothing, Just a') -> Just $ f `App` a'
+-- smallStep (Lam (B xx bod)) = Lam <$> B xx <$> smallStep bod -- TODO move to this so the tests don't rely on unsafe
 smallStep (Lam bndBod) = Lam <$> underBinder smallStep bndBod
 smallStep _ = Nothing -- no step
 
@@ -82,16 +87,16 @@ smallStep' (f `App` a) = do
   mf' <- smallStep' f
   ma' <- smallStep' a
   case (mf', ma') of
-    (Nothing, Nothing) -> pure $ Nothing
+    (Nothing, Nothing) -> pure Nothing
     (Just f', _) -> pure $ Just $ f' `App` a
     (Nothing, Just a') -> pure $ Just $ f `App` a'
 smallStep' (Lam bndBod) = do
   (name, bod) <- unbind bndBod
   mbod' <- smallStep' bod
   case mbod' of
-    Nothing -> pure $ Nothing
+    Nothing -> pure Nothing
     Just bod' -> pure $ Just $ Lam $ bind name bod'
-smallStep' _ = pure $ Nothing -- no step
+smallStep' _ = pure Nothing -- no step
 
 
 expbindProp ::  Expr -> Property
@@ -99,4 +104,15 @@ expbindProp e = smallStep e =~= runFreshM (smallStep' e)
 
 test_substBind :: TestTree
 test_substBind = testGroup "substBind"
-          [testProperty "substBind matches unbind subst" $ expbindProp]
+          [
+            testProperty "substBind matches unbind subst" expbindProp]
+
+
+
+-- badsubstbindexample  = let
+--   x = s2n "x"
+--   y = s2n "y"
+--   ex = (bind y $ bind x (V' x,V' y)) :: Bind (Name E') ( Bind (Name E') (E', E'))
+--   ex' = substBind ex $ V' x
+--   ex'' = substBind ex' $ C' "should only apear once"
+--   in ex''
