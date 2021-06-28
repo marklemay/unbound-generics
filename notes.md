@@ -44,3 +44,14 @@ cansubstboundvars' = let
 ```
 
 
+TODO generalize over lists and tuples?
+
+```haskell
+-- --TODO: check lens match
+-- substsBind :: (Subst a b, Typeable a, Alpha b) => Bind [Name a] b -> [a] -> b
+-- substsBind bndb a = let (x , b) = unsafeUnbind bndb in substs (zip x a) b -- what if the same var!!! or var in the bod
+
+-- --TODO: should generalize
+-- substssBind :: (Subst a b, Typeable a, Alpha b) => Bind ([Name a], Name a) b -> ([a], a)-> b
+-- substssBind bndb (as,a) = let ((xs,x), b) = unsafeUnbind bndb in substs (zip xs as) $ subst x a b
+```
